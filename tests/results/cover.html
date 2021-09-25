@@ -1,0 +1,376 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>handlers: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">github.com/luigizuccarelli/iotpaas-auth-interface/pkg/handlers/handler.go (99.1%)</option>
+				
+				<option value="file1">github.com/luigizuccarelli/iotpaas-auth-interface/pkg/validator/validate.go (92.9%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">package handlers
+
+import (
+        "encoding/json"
+        "fmt"
+        "net/http"
+        "os"
+        "regexp"
+        "strings"
+
+        "github.com/dgrijalva/jwt-go"
+        "github.com/luigizuccarelli/iotpaas-auth-interface/pkg/connectors"
+        "github.com/luigizuccarelli/iotpaas-auth-interface/pkg/schema"
+)
+
+const (
+        CONTENTTYPE     string = "Content-Type"
+        APPLICATIONJSON string = "application/json"
+        FORBIDDEN       string = "Forbidden"
+)
+
+// Isalive - used for liveness and readiness probes
+func IsAlive(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        addHeaders(w, r)
+        fmt.Fprintf(w, "{ \"version\" : \""+os.Getenv("VERSION")+"\" , \"name\": \"AuthInterface\" }")
+        return
+}</span>
+
+// AuthHandler - handles all uth verfication requests
+func AuthHandler(w http.ResponseWriter, r *http.Request, conn connectors.Clients) <span class="cov8" title="1">{
+        var response *schema.Response
+
+        token := r.Header.Get(strings.ToLower("Authorization"))
+        conn.Trace("AuthHandler header : %s", token)
+
+        if token == "" || !strings.Contains(token, "Bearer") || len(token) &lt; 20 </span><span class="cov8" title="1">{
+                w.WriteHeader(http.StatusForbidden)
+                response = &amp;schema.Response{Code: 403, StatusCode: "403", Status: "ERROR", Message: FORBIDDEN}
+                b, _ := json.MarshalIndent(response, "", "        ")
+                fmt.Fprintf(w, string(b))
+                return
+        }</span>
+
+        // Remove Bearer
+        <span class="cov8" title="1">tknStr := strings.Trim(token[7:], " ")
+        conn.Info("AuthHandler token (trimmed) : %s", tknStr)
+        addHeaders(w, r)
+
+        // Initialize a new instance of `Claims`
+        mapClaims := jwt.MapClaims{}
+        secret := os.Getenv("JWT_SECRETKEY")
+        conn.Trace("AuthAhndler JWT SECRET : %s", secret)
+        urlTarget := r.Header.Get("X-Original-Uri")
+        conn.Trace("URL TARGET %s", urlTarget)
+        conn.Trace("REQUEST METHOD: %s", r.Method)
+        conn.Trace("ENV: %s", os.Getenv("ENV"))
+        conn.Trace("HEADER: %s", r.Header)
+        conn.Trace("X-Real-IP: %s", r.Header.Get("X-Real-IP"))
+        conn.Trace("X-Forwarded-For: %s", r.Header.Get("X-Forwarded-For"))
+        conn.Trace("X-Forwarded-Proto: %s", r.Header.Get("X-Forwarded-Proto"))
+        conn.Trace("X-Origin-Request-Method: %s", r.Header.Get("X-Origin-Request-Method"))
+
+        var jwtKey = []byte(secret)
+        // Parse the JWT string and store the result in `claims`.
+        // Note that we are passing the key in this method as well. This method will return an error
+        // if the token is invalid (if it has expired according to the expiry time we set on sign in),
+        // or if the signature does not match
+
+        tkn, err := jwt.ParseWithClaims(tknStr, mapClaims, func(token *jwt.Token) (interface{}, error) </span><span class="cov8" title="1">{
+                return jwtKey, nil
+        }</span>)
+
+        <span class="cov8" title="1">isAccessAuthorized := isAuthorized(schema.AuthorizationCheck{JWTUser: mapClaims, Token: tkn, HTTPMethod: r.Method, Resource: urlTarget}, conn)
+
+        if err != nil || !isAccessAuthorized </span><span class="cov8" title="1">{
+                w.WriteHeader(http.StatusForbidden)
+                response = &amp;schema.Response{Code: 403, StatusCode: "403", Status: "ERROR", Message: FORBIDDEN}
+        }</span> else<span class="cov8" title="1"> {
+                response = &amp;schema.Response{Code: 200, StatusCode: "200", Status: "OK", Message: "Access granted"}
+                w.WriteHeader(http.StatusOK)
+        }</span>
+
+        <span class="cov8" title="1">b, _ := json.MarshalIndent(response, "", "        ")
+        conn.Debug("AuthHandler response : %s", string(b))
+        fmt.Fprintf(w, string(b))
+        return</span>
+}
+
+// headers (with cors) utility
+func addHeaders(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        if r.Header.Get("API-KEY") != "" </span><span class="cov0" title="0">{
+                w.Header().Set("API_KEY_PT", r.Header.Get("API_KEY"))
+        }</span>
+        <span class="cov8" title="1">w.Header().Set(CONTENTTYPE, APPLICATIONJSON)
+        // use this for cors
+        w.Header().Set("Access-Control-Allow-Origin", "*")
+        w.Header().Set("Accept-Language", "*")
+        w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+        w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")</span>
+}
+
+//isAuthorized returns if the user is authorized to proceed with the request
+func isAuthorized(authCheck schema.AuthorizationCheck, conn connectors.Clients) bool <span class="cov8" title="1">{
+
+        if !isTokenValid(authCheck) </span><span class="cov8" title="1">{
+                conn.Trace("IsAuthorized func, token is invalid: %v", authCheck.Token)
+                return false
+        }</span>
+
+        <span class="cov8" title="1">return isUserAccessAuthorized(authCheck, conn)</span>
+}
+
+func isTokenValid(authCheck schema.AuthorizationCheck) (isValid bool) <span class="cov8" title="1">{
+        if authCheck.Token != nil &amp;&amp; authCheck.Token.Valid </span><span class="cov8" title="1">{
+                isValid = true
+        }</span>
+        <span class="cov8" title="1">return</span>
+}
+
+func isUserAccessAuthorized(authCheck schema.AuthorizationCheck, conn connectors.Clients) bool <span class="cov8" title="1">{
+        permissions := jwtFields(authCheck.JWTUser, conn)
+
+        if permissions.IsSkipRoleCheck </span><span class="cov8" title="1">{
+                return true
+        }</span>
+
+        <span class="cov8" title="1">if !hasEnvAccess(permissions.Envs, conn) </span><span class="cov8" title="1">{
+                conn.Trace("IsAuthorized func, user does not have permission to use the HTTP Method: %s", authCheck.HTTPMethod)
+                return false
+        }</span>
+
+        <span class="cov8" title="1">if !hasHTTPMethodAccess(permissions.Operations, authCheck.HTTPMethod, conn) </span><span class="cov8" title="1">{
+                conn.Trace("IsAuthorized func, user does not have permission to use the HTTP Method: %s", authCheck.HTTPMethod)
+                return false
+        }</span>
+
+        <span class="cov8" title="1">if !hasAPIAccess(permissions.Apis, authCheck.Resource, conn) </span><span class="cov8" title="1">{
+                conn.Trace("IsAuthorized func, user does not have permission to access the endpoint: %s", authCheck.Resource)
+                return false
+        }</span>
+
+        <span class="cov8" title="1">return true</span>
+}
+
+func hasEnvAccess(userEnvs []string, conn connectors.Clients) (isValid bool) <span class="cov8" title="1">{
+        for _, v := range userEnvs </span><span class="cov8" title="1">{
+                if v == os.Getenv("ENV") </span><span class="cov8" title="1">{
+                        isValid = true
+                        break</span>
+                }
+        }
+        <span class="cov8" title="1">return</span>
+}
+
+func hasHTTPMethodAccess(userMethods []string, httpMethodRequested string, conn connectors.Clients) (isValid bool) <span class="cov8" title="1">{
+        for _, v := range userMethods </span><span class="cov8" title="1">{
+                if v == httpMethodRequested </span><span class="cov8" title="1">{
+                        isValid = true
+                        break</span>
+                }
+        }
+        <span class="cov8" title="1">return</span>
+}
+
+func hasAPIAccess(userAPIsAllowed []string, apiRequested string, conn connectors.Clients) (isValid bool) <span class="cov8" title="1">{
+        for _, v := range userAPIsAllowed </span><span class="cov8" title="1">{
+                conn.Debug("DEBUG LMZ %s %s", apiRequested, v)
+                if ok, _ := regexp.MatchString(v, apiRequested); ok </span><span class="cov8" title="1">{
+                        isValid = true
+                        break</span>
+                }
+        }
+        <span class="cov8" title="1">return</span>
+}
+
+//This method returns the relevant fields of JWT necessary to check if the user access is authorized
+func jwtFields(jwtUser jwt.MapClaims, conn connectors.Clients) schema.UserPermissons <span class="cov8" title="1">{
+
+        var isSkipRoleCheck bool
+        if jwtUser["skip_role_check"] != nil </span><span class="cov8" title="1">{
+                isSkipRoleCheck = jwtUser["skip_role_check"].(bool)
+                conn.Trace("claims func, JWT skip_role_check claim: %t", isSkipRoleCheck)
+        }</span>
+
+        <span class="cov8" title="1">var group string
+        if jwtUser["group"] != nil </span><span class="cov8" title="1">{
+                group = jwtUser["group"].(string)
+                conn.Trace("claims func, JWT group claim: %v", group)
+        }</span>
+
+        <span class="cov8" title="1">var envsClaim interface{}
+        var envs []string
+        if jwtUser["env"] != nil </span><span class="cov8" title="1">{
+                envsClaim = jwtUser["env"]
+
+                for _, p := range envsClaim.([]interface{}) </span><span class="cov8" title="1">{
+                        envs = append(envs, p.(string))
+                }</span>
+                <span class="cov8" title="1">conn.Trace("claims func, JWT env claim: %v", envs)</span>
+        }
+
+        <span class="cov8" title="1">var opsClaim interface{}
+        var ops []string
+        if jwtUser["op"] != nil </span><span class="cov8" title="1">{
+                opsClaim = jwtUser["op"]
+
+                for _, p := range opsClaim.([]interface{}) </span><span class="cov8" title="1">{
+                        ops = append(ops, p.(string))
+                }</span>
+                <span class="cov8" title="1">conn.Trace("claims func, JWT op claim: %v", ops)</span>
+        }
+
+        <span class="cov8" title="1">var apisClaim interface{}
+        var apis []string
+        if jwtUser["apisallowed"] != nil </span><span class="cov8" title="1">{
+                apisClaim = jwtUser["apisallowed"]
+
+                for _, p := range apisClaim.([]interface{}) </span><span class="cov8" title="1">{
+                        apis = append(apis, p.(string))
+                }</span>
+                <span class="cov8" title="1">conn.Trace("claims func, JWT apisallowed claim: %v", apis)</span>
+        }
+
+        <span class="cov8" title="1">return schema.UserPermissons{Group: group, Envs: envs, Operations: ops, Apis: apis, IsSkipRoleCheck: isSkipRoleCheck}</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">package validator
+
+import (
+        "fmt"
+        "os"
+        "strconv"
+        "strings"
+
+        "github.com/microlib/simple"
+)
+
+// checkEnvars - private function, iterates through each item and checks the required field
+func checkEnvar(item string, logger *simple.Logger) error <span class="cov8" title="1">{
+        name := strings.Split(item, ",")[0]
+        required, _ := strconv.ParseBool(strings.Split(item, ",")[1])
+        logger.Trace(fmt.Sprintf("Input paramaters -&gt; name %s : required %t", name, required))
+        if os.Getenv(name) == "" </span><span class="cov8" title="1">{
+                if required </span><span class="cov8" title="1">{
+                        logger.Error(fmt.Sprintf("%s envar is mandatory please set it", name))
+                        return fmt.Errorf(fmt.Sprintf("%s envar is mandatory please set it", name))
+                }</span>
+
+                <span class="cov0" title="0">logger.Error(fmt.Sprintf("%s envar is empty please set it", name))</span>
+        }
+        <span class="cov8" title="1">return nil</span>
+}
+
+// ValidateEnvars : public call that groups all envar validations
+// These envars are set via the openshift template
+func ValidateEnvars(logger *simple.Logger) error <span class="cov8" title="1">{
+        items := []string{
+                "LOG_LEVEL,false",
+                "NAME,false",
+                "SERVER_PORT,true",
+                "JWT_SECRETKEY,true",
+                "VERSION,true",
+        }
+        for x := range items </span><span class="cov8" title="1">{
+                if err := checkEnvar(items[x], logger); err != nil </span><span class="cov8" title="1">{
+                        return err
+                }</span>
+        }
+        <span class="cov8" title="1">return nil</span>
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

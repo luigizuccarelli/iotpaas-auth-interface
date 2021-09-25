@@ -1,0 +1,14 @@
+[
+    "/orderservice/api/v1/background/orders",
+    "/orderservice/api/v1/orders/customer/[[:alnum:]]+/owningorg/[[:alnum:]]+",
+    "/webhookservice/api/v2/jobs",
+    "/auxservice/api/v2/metrics",
+    "/auxservice/api/v1/orders/[[:alnum:]]+/owningorg/[[:alnum:]]+",
+    "/dbservice/api/v1/search/customers",
+    "/dbservice/api/v1/customers/[[:alnum:]]+",
+    "/jobservice/api/v1/list/jobs/[0-9]+/[0-9]+",
+    "/jobservice/api/v1/jobs/[[:alnum:]]+",
+    "/auxservice/api/v1/owningorg/[[:alnum:]]+/sites",
+    "/jobservice/api/v1/jobs/none", 
+    "/loginservice/api/v1/refresh/[[:alnum:]]+"
+]
