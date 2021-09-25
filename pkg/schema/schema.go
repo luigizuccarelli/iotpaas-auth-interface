@@ -2,6 +2,7 @@ package schema
 
 import "github.com/dgrijalva/jwt-go"
 
+// AuthorizationCheck - struct used for verification
 type AuthorizationCheck struct {
 	JWTUser    jwt.MapClaims
 	Token      *jwt.Token
@@ -9,6 +10,7 @@ type AuthorizationCheck struct {
 	Resource   string
 }
 
+// UserPermissions - struct used to hold user permission profile
 type UserPermissons struct {
 	Group           string
 	Envs            []string
